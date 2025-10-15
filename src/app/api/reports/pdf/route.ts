@@ -135,7 +135,10 @@ export async function GET(request: NextRequest) {
       })),
       closedTicketsCount: closedTickets.length,
       avgResolutionTimeHours: parseFloat(avgResolutionTime.toFixed(2)),
-      topAgents,
+      topAgents: topAgents.map((agent) => ({
+        name: agent.name || 'Sin nombre',
+        _count: agent._count,
+      })),
     };
 
     // Generar PDF

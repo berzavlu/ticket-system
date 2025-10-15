@@ -5,14 +5,17 @@ import { requireAuth, canAccessTicket } from '@/lib/permissions';
 // GET /api/tickets/[id] - Obtener ticket por ID
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación
     const user = await requireAuth();
     
+    // Await params en Next.js 15
+    const { id } = await params;
+    
     // Verificar que el usuario pueda acceder a este ticket
-    const hasAccess = await canAccessTicket(params.id);
+    const hasAccess = await canAccessTicket(id);
     
     if (!hasAccess) {
       return NextResponse.json(
@@ -22,7 +25,7 @@ export async function GET(
     }
 
     const ticket = await prisma.ticket.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         customer: true,
         assignedTo: {
@@ -79,14 +82,17 @@ export async function GET(
 // PUT /api/tickets/[id] - Actualizar ticket
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación
     const user = await requireAuth();
     
+    // Await params en Next.js 15
+    const { id } = await params;
+    
     // Verificar que el usuario pueda acceder a este ticket
-    const hasAccess = await canAccessTicket(params.id);
+    const hasAccess = await canAccessTicket(id);
     
     if (!hasAccess) {
       return NextResponse.json(
@@ -130,7 +136,7 @@ export async function PUT(
         }
         // Verificar que el ticket esté abierto y sin asignar
         const currentTicket = await prisma.ticket.findUnique({
-          where: { id: params.id },
+          where: { id },
           select: { status: true, assignedToId: true },
         });
         
@@ -160,7 +166,7 @@ export async function PUT(
     }
 
     const ticket = await prisma.ticket.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       include: {
         customer: true,
@@ -193,11 +199,14 @@ export async function PUT(
 // DELETE /api/tickets/[id] - Eliminar ticket (solo ADMIN)
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Verificar autenticación y rol ADMIN
     const user = await requireAuth();
+    
+    // Await params en Next.js 15
+    const { id } = await params;
     
     if (user.role !== 'ADMIN') {
       return NextResponse.json(
@@ -207,7 +216,7 @@ export async function DELETE(
     }
 
     await prisma.ticket.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({

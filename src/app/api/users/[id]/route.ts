@@ -5,18 +5,22 @@ import { requireRole } from '@/lib/permissions';
 // GET /api/users/[id] - Obtener perfil de usuario con estadísticas
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Solo ADMIN y SUPERVISOR pueden ver detalles de usuarios
     await requireRole(['ADMIN', 'SUPERVISOR']);
 
+    // Await params en Next.js 15
+    const { id } = await params;
+
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         assignedTickets: {
           include: {
             customer: true,
+            responses: true,
           },
           orderBy: {
             createdAt: 'desc',
@@ -130,18 +134,21 @@ export async function GET(
 // PATCH /api/users/[id] - Actualizar usuario (solo ADMIN)
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Solo ADMIN puede actualizar usuarios
     await requireRole(['ADMIN']);
+
+    // Await params en Next.js 15
+    const { id } = await params;
 
     const body = await request.json();
     const { name, email, role, active } = body;
 
     // Verificar que el usuario existe
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
 
     if (!existingUser) {
@@ -174,7 +181,7 @@ export async function PATCH(
 
     // Actualizar usuario
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
