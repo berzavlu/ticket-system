@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  role          Role      @default(AGENT)
+  active        Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  emailVerified DateTime?
+
+  // Relaciones
+  assignedTickets Ticket[] @relation("AssignedAgent")
+  responses       Response[]
+  accounts        Account[]
+  sessions        Session[]
+  customer        Customer?
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId], map: "accounts_userId_fkey")
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId], map: "sessions_userId_fkey")
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  phone     String?
+  company   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String?  @unique
+
+  // Relaciones
+  user    User?    @relation(fields: [userId], references: [id])
+  tickets Ticket[]
+
+  @@map("customers")
+}
+
+model Ticket {
+  id           String       @id @default(cuid())
+  title        String
+  description  String       @db.Text
+  category     Category     @default(GENERAL)
+  priority     Priority     @default(MEDIUM)
+  status       TicketStatus @default(OPEN)
+  source       Source       @default(EMAIL)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  assignedAt   DateTime?
+  closedAt     DateTime?
+  customerId   String
+  assignedToId String?
+
+  // Relaciones
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  assignedTo User?     @relation("AssignedAgent", fields: [assignedToId], references: [id])
+  responses  Response[]
+
+  @@index([customerId])
+  @@index([assignedToId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("tickets")
+}
+
+model Response {
+  id         String   @id @default(cuid())
+  message    String   @db.Text
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  ticketId   String
+  userId     String
+
+  // Relaciones
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([ticketId])
+  @@index([createdAt])
+  @@index([userId], map: "responses_userId_fkey")
+  @@map("responses")
+}
+
+model Report {
+  id                String   @id @default(cuid())
+  month             Int
+  year              Int
+  totalTickets      Int
+  openTickets       Int
+  closedTickets     Int
+  avgResponseTime   Float
+  avgResolutionTime Float
+  generatedAt       DateTime @default(now())
+
+  @@unique([month, year])
+  @@map("reports")
+}
+
+enum Role {
+  ADMIN
+  AGENT
+  SUPERVISOR
+  CUSTOMER
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Category {
+  GENERAL
+  TECHNICAL_SUPPORT
+  BILLING
+  SALES
+  COMPLAINT
+  SUGGESTION
+  OTHER
+}
+
+enum Source {
+  EMAIL
+  PHONE
+  WEB_FORM
+  WHATSAPP
+  CHAT
+}
